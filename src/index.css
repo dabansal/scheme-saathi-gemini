@@ -2,8 +2,8 @@
 
 @layer base {
   :root {
-    --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", system-ui, sans-serif;
-    --font-body: "Noto Sans", "Noto Sans Devanagari", system-ui, sans-serif;
+    --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Bengali", "Noto Sans Kannada", "Noto Sans Gujarati", system-ui, sans-serif;
+    --font-body: "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Bengali", "Noto Sans Kannada", "Noto Sans Gujarati", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
     /* Material Design 3 (Material You) Civic Blue Tonal Palette */
@@ -72,13 +72,35 @@
 
 @media print {
   @page {
+    size: A4;
     margin: 14mm;
   }
 
+  html,
   body {
     background: #ffffff !important;
     color: #1f1f1f !important;
+    font-size: 11pt;
+    line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-url {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }

@@ -1,4 +1,5 @@
 import type { DocumentTypeKey, Language } from "../shared/models.ts";
+import { buildRegionalUiCopy } from "./i18nRegional.ts";
 
 export interface UiCopy {
   brandName: string;
@@ -40,6 +41,11 @@ export interface UiCopy {
     High: string;
     Medium: string;
     Low: string;
+  };
+  schemeStatusBadges: {
+    eligible: string;
+    potentially_eligible: string;
+    missing_docs: string;
   };
   docStatuses: {
     ready: string;
@@ -151,10 +157,41 @@ export interface UiCopy {
     mapUnavailable: string;
     geoDenied: string;
   };
+  compareSchemes: {
+    openBtn: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    selectSchemesLabel: string;
+    stackingHeading: string;
+    stackingVerifyTitle: string;
+    stackingComplementaryTitle: string;
+    stackingSameCategoryNote: (categories: string) => string;
+    stackingExclusionNote: string;
+    stackingComplementaryNote: string;
+    sharedDocsHeading: string;
+    recommendedFirstLabel: string;
+    docsReadyLabel: string;
+    missingLabel: string;
+    verifyRulesLabel: string;
+    closeBtn: string;
+  };
+  calendarReminder: {
+    openBtn: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    presetsLabel: string;
+    titleLabel: string;
+    dateLabel: string;
+    timeLabel: string;
+    notesLabel: string;
+    downloadBtn: string;
+    downloadedNotice: string;
+    privacyHint: string;
+    closeBtn: string;
+  };
 }
 
-export const UI_COPY: Record<Language, UiCopy> = {
-  en: {
+const EN_COPY: UiCopy = {
     brandName: "Scheme Saathi",
     newSession: "New session",
     heroTitle: "Check scheme readiness in under 3 minutes",
@@ -197,9 +234,9 @@ export const UI_COPY: Record<Language, UiCopy> = {
     revokeConsentBtn: "Revoke consent & clear data",
     consentActiveLabel: "Session photo consent active (in-memory only)",
     planHeading: "Your Plan",
-    printPlanBtn: "Print / PDF",
-    printPlanTitle: "Scheme Saathi — Personalized Action Plan",
-    printedOn: "Printed on",
+    printPlanBtn: "Export PDF",
+    printPlanTitle: "Scheme Saathi — Eligibility & Document Action Plan",
+    printedOn: "Generated on",
     tabs: {
       matches: "Matches",
       documents: "Documents",
@@ -220,6 +257,11 @@ export const UI_COPY: Record<Language, UiCopy> = {
       High: "High confidence",
       Medium: "Medium confidence",
       Low: "Low confidence",
+    },
+    schemeStatusBadges: {
+      eligible: "Eligible",
+      potentially_eligible: "Potentially Eligible",
+      missing_docs: "Missing Docs",
     },
     docStatuses: {
       ready: "Ready",
@@ -355,8 +397,49 @@ export const UI_COPY: Record<Language, UiCopy> = {
       geoDenied:
         "Location access was not granted. Enter your city, district, or PIN code above to search.",
     },
-  },
-  hi: {
+    compareSchemes: {
+      openBtn: "Compare schemes",
+      modalTitle: "Side-by-Side Scheme Comparison & Stacking Check",
+      modalSubtitle:
+        "Compare document readiness, shared documents, and combination rules strictly from official myScheme criteria.",
+      selectSchemesLabel: "Choose 2 to 3 matched schemes to compare",
+      stackingHeading: "Stacking & Compatibility Check",
+      stackingVerifyTitle: "Verify stacking rules before applying to all",
+      stackingComplementaryTitle:
+        "Different categories — confirm stacking officially",
+      stackingSameCategoryNote: (categories) =>
+        `Multiple selected schemes fall in the same category (${categories}). Many Indian scholarships and welfare schemes restrict receiving duplicate benefits from the same category.`,
+      stackingExclusionNote:
+        "Official criteria mention exclusion or single-benefit rules. Confirm on the official portal or at a CSC before submitting multiple applications.",
+      stackingComplementaryNote:
+        "Selected schemes span different categories and are often complementary, but final stacking eligibility must always be verified on the official portals.",
+      sharedDocsHeading: "Shared documents across selected schemes",
+      recommendedFirstLabel: "Suggested first scheme to start",
+      docsReadyLabel: "Documents ready",
+      missingLabel: "Missing / Verify",
+      verifyRulesLabel: "Official rules to verify",
+      closeBtn: "Close",
+    },
+    calendarReminder: {
+      openBtn: "Remind",
+      modalTitle: "Add Calendar Reminder (.ics)",
+      modalSubtitle:
+        "Download a standard calendar file for Google Calendar, Apple Calendar, or Outlook to stay on track with documents and CSC visits.",
+      presetsLabel: "Quick reminder presets",
+      titleLabel: "Reminder title",
+      dateLabel: "Date",
+      timeLabel: "Time",
+      notesLabel: "Notes & checklist",
+      downloadBtn: "Download .ics Reminder",
+      downloadedNotice:
+        "Calendar reminder downloaded — open the .ics file to add it to your calendar.",
+      privacyHint:
+        "Generated strictly on your device. No account sign-in required and raw ID numbers are never included.",
+      closeBtn: "Close",
+    },
+};
+
+const HI_COPY: UiCopy = {
     brandName: "स्कीम साथी",
     newSession: "नया सत्र",
     heroTitle: "3 मिनट से कम में सरकारी योजना की तैयारी जांचें",
@@ -399,9 +482,9 @@ export const UI_COPY: Record<Language, UiCopy> = {
     revokeConsentBtn: "सहमति वापस लें और डेटा हटाएं",
     consentActiveLabel: "इस सत्र के लिए फोटो सहमति सक्रिय (केवल मेमोरी में)",
     planHeading: "आपका प्लान",
-    printPlanBtn: "प्रिंट / PDF",
-    printPlanTitle: "स्कीम साथी — व्यक्तिगत एक्शन प्लान",
-    printedOn: "प्रिंट तिथि",
+    printPlanBtn: "PDF एक्सपोर्ट",
+    printPlanTitle: "स्कीम साथी — पात्रता और दस्तावेज़ एक्शन प्लान",
+    printedOn: "तिथि",
     tabs: {
       matches: "संभावित योजनाएं",
       documents: "दस्तावेज़",
@@ -422,6 +505,11 @@ export const UI_COPY: Record<Language, UiCopy> = {
       High: "उच्च विश्वास",
       Medium: "मध्यम विश्वास",
       Low: "कम विश्वास",
+    },
+    schemeStatusBadges: {
+      eligible: "पात्र",
+      potentially_eligible: "संभावित पात्र",
+      missing_docs: "दस्तावेज़ शेष",
     },
     docStatuses: {
       ready: "तैयार",
@@ -557,5 +645,50 @@ export const UI_COPY: Record<Language, UiCopy> = {
       geoDenied:
         "स्थान की अनुमति नहीं मिली। खोजने के लिए ऊपर अपना शहर, ज़िला या पिन कोड लिखें।",
     },
-  },
+    compareSchemes: {
+      openBtn: "योजनाओं की तुलना करें",
+      modalTitle: "योजनाओं की तुलना और एकत्रित लाभ (Stacking) जांच",
+      modalSubtitle:
+        "आधिकारिक myScheme नियमों के आधार पर दस्तावेज़ तैयारी, साझा दस्तावेज़ और एक साथ आवेदन करने के नियमों की तुलना करें।",
+      selectSchemesLabel: "तुलना के लिए 2 से 3 योजनाएं चुनें",
+      stackingHeading: "एक साथ लाभ (Stacking) जांच",
+      stackingVerifyTitle: "सभी के लिए आवेदन से पहले आधिकारिक नियम जांचें",
+      stackingComplementaryTitle:
+        "अलग-अलग श्रेणियों की योजनाएं — आधिकारिक पुष्टि आवश्यक",
+      stackingSameCategoryNote: (categories) =>
+        `चुनी गई एक से अधिक योजनाएं एक ही श्रेणी (${categories}) में आती हैं। कई सरकारी छात्रवृत्ति और कल्याण योजनाओं में एक ही श्रेणी के दोहरे लाभ पर प्रतिबंध होता है।`,
+      stackingExclusionNote:
+        "आधिकारिक नियमों में अपवाद या एकल-लाभ शर्तों का उल्लेख है। एक से अधिक आवेदन करने से पहले आधिकारिक पोर्टल या CSC पर पुष्टि करें।",
+      stackingComplementaryNote:
+        "चुनी गई योजनाएं अलग-अलग श्रेणियों की हैं और अक्सर पूरक हो सकती हैं, फिर भी अंतिम पात्रता आधिकारिक पोर्टल पर सत्यापित करें।",
+      sharedDocsHeading: "चुनी गई योजनाओं के साझा दस्तावेज़",
+      recommendedFirstLabel: "सबसे पहले शुरू करने के लिए सुझायी गई योजना",
+      docsReadyLabel: "तैयार दस्तावेज़",
+      missingLabel: "कमी / जांचें",
+      verifyRulesLabel: "सत्यापित करने योग्य नियम",
+      closeBtn: "बंद करें",
+    },
+    calendarReminder: {
+      openBtn: "रिमाइंडर",
+      modalTitle: "कैलेंडर रिमाइंडर जोड़ें (.ics)",
+      modalSubtitle:
+        "दस्तावेज़ तैयार करने या CSC / पोर्टल आवेदन के लिए अपने फोन या कंप्यूटर कैलेंडर की .ics फाइल डाउनलोड करें।",
+      presetsLabel: "त्वरित रिमाइंडर विकल्प",
+      titleLabel: "रिमाइंडर शीर्षक",
+      dateLabel: "तिथि",
+      timeLabel: "समय",
+      notesLabel: "नोट्स और दस्तावेज़ सूची",
+      downloadBtn: ".ics रिमाइंडर डाउनलोड करें",
+      downloadedNotice:
+        "कैलेंडर फाइल डाउनलोड हो गई — अपने कैलेंडर में जोड़ने के लिए इसे खोलें।",
+      privacyHint:
+        "पूरी तरह आपके डिवाइस पर तैयार। किसी खाते की ज़रूरत नहीं और कोई पहचान संख्या शामिल नहीं होती।",
+      closeBtn: "बंद करें",
+    },
+};
+
+export const UI_COPY: Record<Language, UiCopy> = {
+  en: EN_COPY,
+  hi: HI_COPY,
+  ...buildRegionalUiCopy(EN_COPY),
 };

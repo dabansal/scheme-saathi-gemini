@@ -37,7 +37,92 @@ export const SESSION_LIMITS = {
   TARGET_SESSION_COST_USD: 0.05,
 } as const;
 
-export type Language = "en" | "hi";
+export const SUPPORTED_LANGUAGES = [
+  "en",
+  "hi",
+  "mr",
+  "ta",
+  "te",
+  "bn",
+  "kn",
+  "gu",
+] as const;
+
+export type Language = (typeof SUPPORTED_LANGUAGES)[number];
+
+export interface LanguageMeta {
+  code: Language;
+  nativeLabel: string;
+  englishName: string;
+  locale: string;
+  scriptName: string;
+}
+
+export const LANGUAGE_META: Record<Language, LanguageMeta> = {
+  en: {
+    code: "en",
+    nativeLabel: "English",
+    englishName: "English",
+    locale: "en-IN",
+    scriptName: "English (Latin script)",
+  },
+  hi: {
+    code: "hi",
+    nativeLabel: "हिन्दी",
+    englishName: "Hindi",
+    locale: "hi-IN",
+    scriptName: "Hindi (Devanagari script)",
+  },
+  mr: {
+    code: "mr",
+    nativeLabel: "मराठी",
+    englishName: "Marathi",
+    locale: "mr-IN",
+    scriptName: "Marathi (Devanagari script)",
+  },
+  ta: {
+    code: "ta",
+    nativeLabel: "தமிழ்",
+    englishName: "Tamil",
+    locale: "ta-IN",
+    scriptName: "Tamil script",
+  },
+  te: {
+    code: "te",
+    nativeLabel: "తెలుగు",
+    englishName: "Telugu",
+    locale: "te-IN",
+    scriptName: "Telugu script",
+  },
+  bn: {
+    code: "bn",
+    nativeLabel: "বাংলা",
+    englishName: "Bengali",
+    locale: "bn-IN",
+    scriptName: "Bengali script",
+  },
+  kn: {
+    code: "kn",
+    nativeLabel: "ಕನ್ನಡ",
+    englishName: "Kannada",
+    locale: "kn-IN",
+    scriptName: "Kannada script",
+  },
+  gu: {
+    code: "gu",
+    nativeLabel: "ગુજરાતી",
+    englishName: "Gujarati",
+    locale: "gu-IN",
+    scriptName: "Gujarati script",
+  },
+};
+
+export function isSupportedLanguage(value: unknown): value is Language {
+  return (
+    typeof value === "string" &&
+    (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
+  );
+}
 
 export type JourneyType = "farmer" | "student" | "health" | "livelihood" | "other";
 

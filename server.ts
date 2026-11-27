@@ -4,7 +4,7 @@ import path from "node:path";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import { SESSION_LIMITS } from "./shared/models.ts";
+import { SESSION_LIMITS, SUPPORTED_LANGUAGES } from "./shared/models.ts";
 import {
   DemoBudgetExceededError,
   getDailyBudgetSummary,
@@ -27,7 +27,7 @@ import {
 const PORT = Number(process.env.PORT) || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
 
-const LanguageSchema = z.enum(["en", "hi"]);
+const LanguageSchema = z.enum(SUPPORTED_LANGUAGES);
 const SessionIdSchema = z
   .string()
   .regex(/^[a-zA-Z0-9_-]{8,64}$/)

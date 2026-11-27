@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Type } from "@google/genai";
 import {
+  LANGUAGE_META,
   MODELS,
   SESSION_LIMITS,
   THINKING_LEVELS,
@@ -105,7 +106,7 @@ You are NOT a generic scheme directory and you NEVER submit applications on beha
 
 STRICT RULES:
 1. GROUNDING: Base EVERY eligibility claim, benefit, exclusion warning, and required document STRICTLY on the "OFFICIAL MYSCHEME CRITERIA" provided in the prompt. NEVER invent schemes, criteria, benefits, URLs, or document lists. If official criteria are missing or fetch failed, state that plainly.
-2. LANGUAGE: Reply naturally in the exact language the citizen wrote in (Hindi in Devanagari if they wrote Hindi, Hinglish/Hindi if they wrote Hinglish, English if they wrote English, respecting the citizen's selected UI language when they click a choice). Keep sentences short, simple, and low-literacy friendly.
+2. LANGUAGE: Reply naturally in the exact language the citizen wrote in or selected (English, Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, or Gujarati in their native scripts, or Hinglish/Hindi if they wrote Hinglish). Keep sentences short, simple, and low-literacy friendly.
 3. FEWER, BETTER QUESTIONS: Ask at most ONE decisive follow-up question per turn, and NEVER exceed the session's remaining question budget. Whenever asking a yes/no or multiple-choice question, ALWAYS include 2 to 4 concise tappable choices.
 4. SAFE UNCERTAINTY: If key facts (such as state, landholding, income, tax/pension exclusion, or category) are unknown or conflicting, explicitly list what is unknown in "unknownFacts" and "whatToVerify". Never guess eligibility.
 5. PRIVACY: Never repeat a full 12-digit Aadhaar number or full bank account number; mask to last 4 digits only.
@@ -397,8 +398,16 @@ export function buildSessionSnapshot(session: SessionState): SessionSnapshot {
   };
 }
 
-function detectDevanagari(text: string): boolean {
-  return /[\u0900-\u097F]/.test(text);
+function detectLanguageFromScript(text: string, fallback: Language): Language {
+  if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
+  if (/[\u0C00-\u0C7F]/.test(text)) return "te";
+  if (/[\u0980-\u09FF]/.test(text)) return "bn";
+  if (/[\u0C80-\u0CFF]/.test(text)) return "kn";
+  if (/[\u0A80-\u0AFF]/.test(text)) return "gu";
+  if (/[\u0900-\u097F]/.test(text)) {
+    return fallback === "mr" ? "mr" : "hi";
+  }
+  return fallback;
 }
 
 function buildOfficialCriteriaPrefix(schemes: OfficialSchemeRecord[]): string {
@@ -675,9 +684,10 @@ export async function handleChatTurn(params: {
     }
   }
 
-  const replyLanguage: Language = detectDevanagari(cleanMessage)
-    ? "hi"
-    : params.uiLanguage;
+  const replyLanguage: Language = detectLanguageFromScript(
+    cleanMessage,
+    params.uiLanguage,
+  );
 
   // Step 1: Fast Decisions API gating & routing (zero output tokens)
   const gate = await evaluateCitizenTurn({
@@ -799,8 +809,9 @@ export async function handleChatTurn(params: {
       }`
     : `Citizen State / UT: Not explicitly selected yet.`;
 
+  const langMeta = LANGUAGE_META[replyLanguage];
   const turnPrompt = [
-    `Selected UI Language: ${replyLanguage === "hi" ? "Hindi (respond in Hindi Devanagari if citizen wrote Hindi/Hinglish, or match citizen language)" : "English (respond in Hindi/Hinglish if citizen wrote Hindi/Hinglish, otherwise English)"}.`,
+    `Selected UI / Citizen Language: ${langMeta.englishName} — ${langMeta.scriptName}. Respond naturally in ${langMeta.englishName} (${langMeta.scriptName}) for assistantReply, choices, whyItMayFit, whatToVerify, whatIsMissing, nextOfficialAction, document labels/details, and nextStepSummary (or match the citizen's language if they wrote in another Indian language).`,
     `Citizen Journey: ${gate.journey}`,
     locationContextLine,
     `Profile Completeness Score (0-3): ${gate.profileCompletenessScore.toFixed(2)}`,
@@ -1187,7 +1198,7 @@ export async function handleDocumentAnalysis(params: {
           type: "text",
           text: [
             `Document Type Claimed: ${params.claimedType}.`,
-            `Citizen Language: ${isHi ? "Hindi (Devanagari)" : "English"}.`,
+            `Citizen Language: ${LANGUAGE_META[params.uiLanguage].englishName} (${LANGUAGE_META[params.uiLanguage].scriptName}). Write citizenSummary and extractedReadinessFacts in this language.`,
             `Extract ONLY scheme-readiness facts (such as state/district, land area if land record, bank IFSC/account active status if passbook, income band if income certificate, or name/DOB presence).`,
             `PRIVACY RULE: NEVER output a full 12-digit Aadhaar number or full bank account number. Output ONLY the last 4 digits in maskedLast4Digits.`,
           ].join("\n"),

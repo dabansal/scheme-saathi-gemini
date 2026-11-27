@@ -5,6 +5,8 @@ import {
   Briefcase,
   Camera,
   Check,
+  ChevronDown,
+  Globe,
   GraduationCap,
   HeartPulse,
   History,
@@ -21,6 +23,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { INDIA_STATES, findIndiaStateByCode } from "../shared/indiaStates.ts";
+import { LANGUAGE_META, SUPPORTED_LANGUAGES } from "../shared/models.ts";
 import type {
   ChatMessage,
   CitizenLocation,
@@ -158,8 +161,10 @@ function CitizenWorkspace() {
   const [manualReadyDocIds, setManualReadyDocIds] = useState<string[]>([]);
   const [recheckingFacts, setRecheckingFacts] = useState(false);
   const [helpCentreMapOpen, setHelpCentreMapOpen] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
   const { isOnline, justReconnected } = useNetworkStatus();
   const copy = UI_COPY[language];
   const basePlan = session?.plan ?? buildDefaultPlan(language, location);
@@ -209,6 +214,27 @@ function CitizenWorkspace() {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [messages, sending]);
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        langMenuRef.current &&
+        !langMenuRef.current.contains(event.target as Node)
+      ) {
+        setLangMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLangMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [langMenuOpen]);
 
   useEffect(() => {
     if (!hasUnsavedChanges || !sessionUnfinished) return;
@@ -482,7 +508,7 @@ function CitizenWorkspace() {
     try {
       const date = new Date(iso);
       if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(language === "hi" ? "hi-IN" : "en-IN", {
+      return date.toLocaleString(LANGUAGE_META[language].locale, {
         day: "numeric",
         month: "short",
         hour: "numeric",
@@ -615,42 +641,74 @@ function CitizenWorkspace() {
             <span>{copy.brandName}</span>
           </a>
 
-          {/* Zone 2: Material 3 Outlined Segmented Button (Language) */}
-          <div
-            role="group"
-            aria-label="Language"
-            className="inline-flex items-center rounded-full border border-[#747775]/75 bg-white overflow-hidden shrink-0"
-          >
+          {/* Zone 2: Material 3 Language Selector Menu (8 Indian Languages) */}
+          <div ref={langMenuRef} className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setLanguage("en")}
-              aria-pressed={language === "en"}
-              className={`min-h-[38px] px-3.5 sm:px-4 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap border-r border-[#747775]/40 ${
-                language === "en"
-                  ? "bg-[#C2E7FF] text-[#001D35]"
-                  : "text-[#444746] hover:bg-[#F0F4F9]"
+              onClick={() => setLangMenuOpen((prev) => !prev)}
+              aria-haspopup="menu"
+              aria-expanded={langMenuOpen}
+              aria-label={`Language: ${LANGUAGE_META[language].englishName}`}
+              className={`min-h-[40px] px-3.5 sm:px-4 rounded-full border text-xs sm:text-sm font-medium inline-flex items-center gap-2 transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#0B57D0] ${
+                langMenuOpen
+                  ? "border-transparent bg-[#C2E7FF] text-[#001D35]"
+                  : "border-[#747775]/75 bg-white text-[#1F1F1F] hover:bg-[#F0F4F9]"
               }`}
             >
-              {language === "en" && (
-                <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              )}
-              <span>English</span>
+              <Globe className="w-4 h-4 text-[#0B57D0] shrink-0" aria-hidden="true" />
+              <span>{LANGUAGE_META[language].nativeLabel}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-[#444746] transition-transform ${
+                  langMenuOpen ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              />
             </button>
-            <button
-              type="button"
-              onClick={() => setLanguage("hi")}
-              aria-pressed={language === "hi"}
-              className={`min-h-[38px] px-3.5 sm:px-4 text-xs font-medium inline-flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                language === "hi"
-                  ? "bg-[#C2E7FF] text-[#001D35]"
-                  : "text-[#444746] hover:bg-[#F0F4F9]"
-              }`}
-            >
-              {language === "hi" && (
-                <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              )}
-              <span>हिन्दी</span>
-            </button>
+
+            {langMenuOpen && (
+              <div
+                role="menu"
+                aria-label="Select language"
+                className="absolute left-1/2 -translate-x-1/2 mt-2 w-56 rounded-[20px] bg-white border border-[#E1E5EC] md-elevation-2 py-2 z-50"
+              >
+                {SUPPORTED_LANGUAGES.map((langCode) => {
+                  const meta = LANGUAGE_META[langCode];
+                  const active = language === langCode;
+                  return (
+                    <button
+                      key={langCode}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      onClick={() => {
+                        setLanguage(langCode);
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full min-h-[42px] px-4 py-2 text-left flex items-center justify-between gap-3 transition-colors ${
+                        active
+                          ? "bg-[#D3E3FD]/65 text-[#041E49] font-semibold"
+                          : "text-[#1F1F1F] hover:bg-[#F0F4F9]"
+                      }`}
+                    >
+                      <span className="flex flex-col leading-tight">
+                        <span className="text-sm">{meta.nativeLabel}</span>
+                        {meta.nativeLabel !== meta.englishName && (
+                          <span className="text-[11px] text-[#444746] font-normal">
+                            {meta.englishName}
+                          </span>
+                        )}
+                      </span>
+                      {active && (
+                        <Check
+                          className="w-4 h-4 text-[#0B57D0] shrink-0"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Zone 3: Single Primary Utility Action (M3 Filled Tonal Button) */}

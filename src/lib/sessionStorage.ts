@@ -1,3 +1,4 @@
+import { isSupportedLanguage } from "../../shared/models.ts";
 import type {
   ChatMessage,
   CitizenLocation,
@@ -150,7 +151,7 @@ export function loadSavedSessionProgress(): SavedSessionData | null {
     if (
       parsed.version !== STORAGE_VERSION ||
       typeof parsed.savedAt !== "string" ||
-      (parsed.language !== "en" && parsed.language !== "hi") ||
+      !isSupportedLanguage(parsed.language) ||
       !parsed.session ||
       typeof parsed.session.sessionId !== "string" ||
       !Array.isArray(parsed.messages) ||

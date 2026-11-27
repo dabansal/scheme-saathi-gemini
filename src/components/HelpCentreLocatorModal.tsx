@@ -167,7 +167,7 @@ export function HelpCentreLocatorModal({
             <APIProvider
               apiKey={apiKey}
               libraries={["places", "marker"]}
-              language={language === "hi" ? "hi" : "en"}
+              language={language}
               region="IN"
             >
               <LocatorMapWorkspace language={language} location={location} />
@@ -297,7 +297,7 @@ function LocatorMapWorkspace({
           },
           maxResultCount: 8,
           region: "IN",
-          language: language === "hi" ? "hi" : "en",
+          language,
         };
 
         const response = await placesLib.Place.searchByText(request);

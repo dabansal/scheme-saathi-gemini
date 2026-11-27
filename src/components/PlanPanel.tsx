@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CalendarPlus,
   Camera,
   Check,
   CheckCircle2,
@@ -7,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   CircleDashed,
+  Columns2,
   Copy,
   ExternalLink,
   FileText,
@@ -25,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { LANGUAGE_META } from "../../shared/models.ts";
 import type {
   CitizenLocation,
   ConfidenceLabel,
@@ -39,6 +42,10 @@ import {
   buildWhatsAppShareUrl,
   copyTextToClipboard,
 } from "../lib/shareChecklist.ts";
+import { getSchemeCardStatus } from "../lib/schemeCompare.ts";
+import type { SchemeCardStatus } from "../lib/schemeCompare.ts";
+import { CalendarReminderModal } from "./CalendarReminderModal.tsx";
+import { SchemeCompareModal } from "./SchemeCompareModal.tsx";
 
 export type PlanTab = "matches" | "documents" | "nextStep";
 
@@ -72,7 +79,7 @@ function isSafeHttpsUrl(rawUrl: string): boolean {
 function formatDateShort(iso: string, language: Language): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString(language === "hi" ? "hi-IN" : "en-IN", {
+    return d.toLocaleDateString(LANGUAGE_META[language].locale, {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -108,6 +115,32 @@ function renderConfidenceText(confidence: ConfidenceLabel, language: Language) {
   );
 }
 
+function renderSchemeStatusBadge(status: SchemeCardStatus, language: Language) {
+  const label = UI_COPY[language].schemeStatusBadges[status];
+  if (status === "eligible") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#C4EED0] text-[#072711] text-[11px] font-semibold leading-5 whitespace-nowrap shrink-0">
+        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+        <span>{label}</span>
+      </span>
+    );
+  }
+  if (status === "missing_docs") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#FFF4D6] text-[#422006] text-[11px] font-semibold leading-5 whitespace-nowrap shrink-0">
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+        <span>{label}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#D3E3FD] text-[#041E49] text-[11px] font-semibold leading-5 whitespace-nowrap shrink-0">
+      <HelpCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+      <span>{label}</span>
+    </span>
+  );
+}
+
 export function PlanPanel({
   plan,
   language,
@@ -136,6 +169,8 @@ export function PlanPanel({
   const [editingFacts, setEditingFacts] = useState(false);
   const [draftFacts, setDraftFacts] = useState<string[]>(plan.knownFacts);
   const [newFactInput, setNewFactInput] = useState("");
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   useEffect(() => {
     if (!editingFacts) {
@@ -186,9 +221,33 @@ export function PlanPanel({
   }
 
   function handlePrintPlan() {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    setShareOpen(false);
+    setEditingFacts(false);
+    setCompareOpen(false);
+    setReminderOpen(false);
+
+    const originalTitle = document.title;
+    const dateSlug = new Date().toISOString().slice(0, 10);
+    const stateSlug = activeLocation?.stateCode
+      ? `-${activeLocation.stateCode}`
+      : "";
+    document.title = `Scheme-Saathi${stateSlug}-Action-Plan-${dateSlug}`;
+
+    let restored = false;
+    const restoreTitle = () => {
+      if (restored) return;
+      restored = true;
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+
+    window.addEventListener("afterprint", restoreTitle);
+    // Allow React to flush closed drawers before opening the browser print/PDF dialog
+    window.requestAnimationFrame(() => {
       window.print();
-    }
+      window.setTimeout(restoreTitle, 1500);
+    });
   }
 
   async function handleCopyChecklist() {
@@ -237,17 +296,20 @@ export function PlanPanel({
       aria-label={copy.planHeading}
       className="bg-white border border-[#E1E5EC] md-elevation-1 rounded-[28px] overflow-hidden flex flex-col print:border-0 print:rounded-none print:shadow-none print:overflow-visible"
     >
-      {/* Print-only Document Header */}
-      <div className="hidden print:block pb-4 mb-4 border-b border-[#C4C7C5] space-y-1">
-        <h1 className="text-xl font-bold text-[#0B57D0]">
-          {copy.printPlanTitle}
-        </h1>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#444746] font-mono-tabular">
-          <span>
+      {/* Print-only Formatted PDF Dossier Header + Eligibility Profile */}
+      <div className="hidden print:block pb-4 mb-5 border-b-2 border-[#0B57D0] space-y-2 print-avoid-break">
+        <div className="flex items-baseline justify-between gap-4">
+          <h1 className="text-xl font-bold text-[#0B57D0]">
+            {copy.printPlanTitle}
+          </h1>
+          <span className="text-xs font-mono-tabular text-[#444746] shrink-0">
             {copy.printedOn}: {printedDateText}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#444746] font-mono-tabular">
           {activeLocation?.stateName && (
             <span>
+              {language === "hi" ? "राज्य / स्थान" : "Location"}:{" "}
               {copy.locationFilter.selectedBadge(
                 activeLocation.stateName,
                 activeLocation.district,
@@ -256,14 +318,57 @@ export function PlanPanel({
           )}
           {plan.lastFetchedAt && (
             <span>
-              {copy.fetchedOn}: {formatDateShort(plan.lastFetchedAt, language)}
+              {language === "hi" ? "myScheme स्रोत तिथि" : "myScheme criteria fetched"}:{" "}
+              {formatDateShort(plan.lastFetchedAt, language)}
+            </span>
+          )}
+          {plan.documents.length > 0 && (
+            <span>
+              {copy.docStatuses.ready}: {readyCount}/{plan.documents.length}
             </span>
           )}
         </div>
-        <p className="text-xs font-semibold text-[#1F1F1F] pt-1">
+        <p className="text-xs font-medium text-[#1F1F1F] bg-[#F0F4F9] rounded-lg px-3 py-2">
           {copy.potentialMatchDisclaimer} {copy.noSubmissionNotice}
         </p>
       </div>
+
+      {/* Print-only Section 1: Citizen Eligibility Profile Summary */}
+      {(plan.knownFacts.length > 0 || plan.unknownFacts.length > 0) && (
+        <div className="hidden print:block mb-5 pb-4 border-b border-[#C4C7C5] space-y-2.5 print-avoid-break">
+          <h2 className="text-sm font-bold text-[#1F1F1F] uppercase tracking-wide">
+            {language === "hi"
+              ? "1. नागरिक पात्रता विवरण"
+              : "1. Citizen Eligibility Profile"}
+          </h2>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            {plan.knownFacts.length > 0 && (
+              <div className="space-y-1">
+                <p className="font-semibold text-[#146C2E]">
+                  {copy.knownFactsHeading}
+                </p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[#1F1F1F]">
+                  {plan.knownFacts.map((fact, idx) => (
+                    <li key={idx}>{fact}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {plan.unknownFacts.length > 0 && (
+              <div className="space-y-1">
+                <p className="font-semibold text-[#7A4F01]">
+                  {copy.unknownFactsHeading}
+                </p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[#422006]">
+                  {plan.unknownFacts.map((fact, idx) => (
+                    <li key={idx}>{fact}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Material 3 Panel Header + Primary Tab Row */}
       <div className="pt-5 border-b border-[#E1E5EC] print:hidden">
@@ -282,6 +387,15 @@ export function PlanPanel({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
+                onClick={() => setReminderOpen(true)}
+                aria-label={copy.calendarReminder.openBtn}
+                className="min-h-[40px] px-3 py-2 rounded-full border border-[#747775]/60 bg-white text-[#0B57D0] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#0B57D0]/8 transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#0B57D0]"
+              >
+                <CalendarPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="hidden xl:inline">{copy.calendarReminder.openBtn}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setShareOpen((prev) => !prev)}
                 aria-expanded={shareOpen}
                 aria-label={copy.shareChecklist.shareBtn}
@@ -298,7 +412,7 @@ export function PlanPanel({
                 type="button"
                 onClick={handlePrintPlan}
                 aria-label={copy.printPlanBtn}
-                className="min-h-[40px] px-3.5 py-2 rounded-full border border-[#747775]/60 bg-white text-[#0B57D0] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#0B57D0]/8 transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#0B57D0]"
+                className="min-h-[40px] px-3 py-2 rounded-full border border-[#747775]/60 bg-white text-[#0B57D0] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#0B57D0]/8 transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#0B57D0]"
               >
                 <Printer className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{copy.printPlanBtn}</span>
@@ -479,8 +593,10 @@ export function PlanPanel({
               : "hidden print:block space-y-5"
           }
         >
-          <h2 className="hidden print:block text-base font-bold text-[#1F1F1F] pb-1.5 border-b border-[#C4C7C5]">
-            {copy.tabs.matches}
+          <h2 className="hidden print:block text-sm font-bold text-[#1F1F1F] uppercase tracking-wide pb-1.5 border-b border-[#C4C7C5]">
+            {language === "hi"
+              ? "2. पात्रता मानदंड और संभावित योजनाएं"
+              : "2. Eligibility Criteria & Potential Scheme Matches"}
             {plan.matches.length > 0 ? ` (${plan.matches.length})` : ""}
           </h2>
 
@@ -524,17 +640,39 @@ export function PlanPanel({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-[#E1E5EC]">
-              {plan.matches.map((match) => (
+            <div className="space-y-4">
+              {plan.matches.length >= 2 && (
+                <div className="flex items-center justify-end print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setCompareOpen(true)}
+                    className="min-h-[42px] px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-xs sm:text-sm font-medium inline-flex items-center gap-2 hover:bg-[#C2D8FC] active:scale-[0.98] transition-all whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#0B57D0]"
+                  >
+                    <Columns2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span>{copy.compareSchemes.openBtn}</span>
+                  </button>
+                </div>
+              )}
+              <div className="divide-y divide-[#E1E5EC]">
+              {plan.matches.map((match) => {
+                const cardStatus = getSchemeCardStatus({
+                  match,
+                  documents: plan.documents,
+                  manualReadyDocIds,
+                });
+                return (
                 <article
                   key={match.slug}
-                  className="py-5 first:pt-0 last:pb-0 space-y-3.5 print:break-inside-avoid"
+                  className="py-5 first:pt-0 last:pb-0 space-y-3.5 print-avoid-break"
                 >
-                  {/* Title + Clean Unboxed Inline Metadata */}
-                  <div className="space-y-1">
-                    <h3 className="text-base font-semibold text-[#1F1F1F] leading-snug">
-                      {match.schemeName}
-                    </h3>
+                  {/* Title + Visual Status Badge + Clean Inline Metadata */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-start justify-between gap-2.5">
+                      <h3 className="text-base font-semibold text-[#1F1F1F] leading-snug min-w-0">
+                        {match.schemeName}
+                      </h3>
+                      {renderSchemeStatusBadge(cardStatus, language)}
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#444746]">
                       <span>{match.category}</span>
                       <span aria-hidden="true">·</span>
@@ -624,7 +762,7 @@ export function PlanPanel({
                   </div>
 
                   {/* Print-readable Official URLs */}
-                  <div className="hidden print:block space-y-1 pt-1 text-xs text-[#444746] font-mono-tabular break-all">
+                  <div className="hidden print:block space-y-1 pt-1 text-xs text-[#444746] font-mono-tabular print-url">
                     {isSafeHttpsUrl(match.officialChannelUrl) && (
                       <p>
                         <span className="font-sans font-semibold text-[#1F1F1F]">
@@ -643,7 +781,9 @@ export function PlanPanel({
                     )}
                   </div>
                 </article>
-              ))}
+                );
+              })}
+              </div>
             </div>
           )}
 
@@ -696,9 +836,11 @@ export function PlanPanel({
               : "hidden print:block space-y-4 print:pt-4 print:border-t print:border-[#C4C7C5]"
           }
         >
-          <h2 className="hidden print:block text-base font-bold text-[#1F1F1F] pb-1.5 border-b border-[#C4C7C5]">
-            {copy.tabs.documents}
-            {plan.documents.length > 0 ? ` (${plan.documents.length})` : ""}
+          <h2 className="hidden print:block text-sm font-bold text-[#1F1F1F] uppercase tracking-wide pb-1.5 border-b border-[#C4C7C5]">
+            {language === "hi"
+              ? "3. दस्तावेज़ तैयारी चेकलिस्ट"
+              : "3. Document Readiness Checklist"}
+            {plan.documents.length > 0 ? ` (${readyCount}/${plan.documents.length} ${copy.docStatuses.ready})` : ""}
           </h2>
 
           {/* Document Photo Action Bar (M3 Filled Button) */}
@@ -770,7 +912,7 @@ export function PlanPanel({
                 return (
                   <li
                     key={doc.id}
-                    className="py-4 first:pt-0 last:pb-0 space-y-2 print:break-inside-avoid"
+                    className="py-4 first:pt-0 last:pb-0 space-y-2 print-avoid-break"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-2.5 min-w-0">
@@ -882,7 +1024,7 @@ export function PlanPanel({
                     </div>
 
                     {guideOpen && (
-                      <div className="ml-0 sm:ml-7 rounded-[16px] bg-[#F0F4F9] p-3.5 space-y-2 text-xs text-[#1F1F1F]">
+                      <div className="ml-0 sm:ml-7 rounded-[16px] bg-[#F0F4F9] p-3.5 space-y-2 text-xs text-[#1F1F1F] print:hidden">
                         <ol className="list-decimal pl-4 space-y-1 leading-relaxed">
                           {guide.steps.map((step, idx) => (
                             <li key={idx}>{step}</li>
@@ -901,6 +1043,21 @@ export function PlanPanel({
                         )}
                       </div>
                     )}
+
+                    {/* Print-only concise guide for Missing / Unverified documents */}
+                    {!isReady && guide.steps.length > 0 && (
+                      <div className="hidden print:block ml-6 rounded-lg bg-[#F0F4F9] px-3 py-2 text-[11px] text-[#1F1F1F] space-y-0.5">
+                        <p className="font-semibold text-[#0B57D0]">
+                          {copy.documentChecklist.howToGetBtn}:
+                        </p>
+                        <p>{guide.steps[0]}</p>
+                        {isSafeHttpsUrl(guide.officialPortalUrl) && (
+                          <p className="font-mono-tabular text-[#444746] print-url">
+                            {guide.officialPortalLabel}: {guide.officialPortalUrl}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -916,11 +1073,13 @@ export function PlanPanel({
               : "hidden print:block space-y-4 print:pt-4 print:border-t print:border-[#C4C7C5]"
           }
         >
-          <h2 className="hidden print:block text-base font-bold text-[#1F1F1F] pb-1.5 border-b border-[#C4C7C5]">
-            {copy.tabs.nextStep}
+          <h2 className="hidden print:block text-sm font-bold text-[#1F1F1F] uppercase tracking-wide pb-1.5 border-b border-[#C4C7C5]">
+            {language === "hi"
+              ? "4. अगला आधिकारिक कदम और सहायता केंद्र"
+              : "4. Next Official Step & Help Channels"}
           </h2>
 
-          <div className="rounded-[20px] bg-[#F0F4F9] p-4 space-y-2">
+          <div className="rounded-[20px] bg-[#F0F4F9] p-4 space-y-2 print-avoid-break">
             <h3 className="text-sm font-semibold text-[#1F1F1F]">
               {copy.nextOfficialAction}
             </h3>
@@ -932,11 +1091,11 @@ export function PlanPanel({
             </p>
           </div>
 
-          {/* Known Facts + Interactive "What-If" Fact Editor */}
+          {/* Known Facts + Interactive "What-If" Fact Editor (shown in Section 1 in print) */}
           {(plan.knownFacts.length > 0 ||
             plan.unknownFacts.length > 0 ||
             canRecheckFacts) && (
-            <div className="grid grid-cols-1 gap-4 pt-1">
+            <div className="grid grid-cols-1 gap-4 pt-1 print:hidden">
               {(plan.knownFacts.length > 0 || canRecheckFacts) && (
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
@@ -1097,22 +1256,32 @@ export function PlanPanel({
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                disabled={isOffline}
-                onClick={onOpenHelpCentreMap}
-                className="min-h-[42px] px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#C2D8FC] transition-colors disabled:opacity-50 whitespace-nowrap print:hidden"
-              >
-                <MapPin className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>{copy.helpCentreMap.openMapBtn}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
+                <button
+                  type="button"
+                  onClick={() => setReminderOpen(true)}
+                  className="min-h-[42px] px-4 py-2 rounded-full border border-[#747775]/60 bg-white text-[#0B57D0] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#0B57D0]/8 transition-colors whitespace-nowrap"
+                >
+                  <CalendarPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>{copy.calendarReminder.openBtn}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isOffline}
+                  onClick={onOpenHelpCentreMap}
+                  className="min-h-[42px] px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 hover:bg-[#C2D8FC] transition-colors disabled:opacity-50 whitespace-nowrap"
+                >
+                  <MapPin className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>{copy.helpCentreMap.openMapBtn}</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
               {plan.handoffChannels.map((channel, idx) => (
                 <div
                   key={idx}
-                  className="p-3.5 rounded-[16px] bg-[#F0F4F9]/80 space-y-1"
+                  className="p-3.5 rounded-[16px] bg-[#F0F4F9]/80 space-y-1 print-avoid-break"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -1134,7 +1303,7 @@ export function PlanPanel({
                           <span>{language === "hi" ? "खोलें" : "Open"}</span>
                           <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                         </a>
-                        <span className="hidden print:inline text-xs font-mono-tabular text-[#444746] break-all">
+                        <span className="hidden print:inline text-xs font-mono-tabular text-[#444746] print-url">
                           {channel.contactOrUrl}
                         </span>
                       </>
@@ -1150,6 +1319,26 @@ export function PlanPanel({
           </div>
         </div>
       </div>
+
+      {/* Side-by-Side Scheme Comparison & Stacking Check Modal */}
+      <SchemeCompareModal
+        open={compareOpen}
+        language={language}
+        matches={plan.matches}
+        documents={plan.documents}
+        manualReadyDocIds={manualReadyDocIds}
+        onClose={() => setCompareOpen(false)}
+      />
+
+      {/* Calendar Reminder (.ics) Modal */}
+      <CalendarReminderModal
+        open={reminderOpen}
+        language={language}
+        plan={plan}
+        location={activeLocation}
+        manualReadyDocIds={manualReadyDocIds}
+        onClose={() => setReminderOpen(false)}
+      />
     </section>
   );
 }
