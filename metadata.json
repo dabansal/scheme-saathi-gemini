@@ -1,0 +1,8 @@
+{
+  "name": "Scheme Saathi",
+  "description": "An application-readiness companion for Indian citizens that turns a citizen's situation into a verified, explainable action plan for government schemes using live myScheme criteria.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

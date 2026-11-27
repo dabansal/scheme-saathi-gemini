@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: "Plus Jakarta Sans", "Noto Sans Devanagari", system-ui, sans-serif;
+    --font-body: "Noto Sans", "Noto Sans Devanagari", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+    /* Material Design 3 (Material You) Civic Blue Tonal Palette */
+    --md-sys-color-surface: #F8FAFD;
+    --md-sys-color-surface-container-lowest: #FFFFFF;
+    --md-sys-color-surface-container-low: #F0F4F9;
+    --md-sys-color-surface-container: #E9EEF6;
+    --md-sys-color-surface-container-high: #DDE3EA;
+    --md-sys-color-on-surface: #1F1F1F;
+    --md-sys-color-on-surface-variant: #444746;
+    --md-sys-color-outline: #747775;
+    --md-sys-color-outline-variant: #C4C7C5;
+    --md-sys-color-primary: #0B57D0;
+    --md-sys-color-primary-hover: #0842A0;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #D3E3FD;
+    --md-sys-color-on-primary-container: #041E49;
+    --md-sys-color-secondary-container: #C2E7FF;
+    --md-sys-color-on-secondary-container: #001D35;
+    --md-sys-color-tertiary: #146C2E;
+    --md-sys-color-tertiary-container: #C4EED0;
+    --md-sys-color-on-tertiary-container: #072711;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-error-container: #F9DEDC;
+    --md-sys-color-on-error-container: #410E0B;
+  }
+
+  html {
+    font-family: var(--font-body);
+    color: var(--md-sys-color-on-surface);
+    background-color: var(--md-sys-color-surface);
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  .font-mono-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .md-elevation-1 {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px 1px rgba(0, 0, 0, 0.04);
+  }
+
+  .md-elevation-2 {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 2px 6px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .md-elevation-3 {
+    box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #1f1f1f !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
